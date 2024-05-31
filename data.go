@@ -41,7 +41,37 @@ func (f *FSNodeStat) Update(child *FSNodeStat) {
 
 func (f *FSNodeStat) String() string {
 	return fmt.Sprintf(
-		"Id: %d\nParentId: %d\nPath: %s\nIsDir: %t\nCount: %d\nSize: %s\n\nSFileCount: %d\nSFileSize: %s\n\nMFileCount: %d\nMFileSize: %s\n\nLFileCount: %d\nLFileSize: %s\n\nXLFileCount: %d\nXLFileSize: %s\n\nXXLFileCount: %d\nXXLFileSize: %s",
+		`Id: %d
+ParentId: %d
+Path: %s
+IsDir: %t
+Count: %d
+Size: %s
+
+S Files - less than 512KiB
+--------------------------
+Count: %d
+Size: %s
+
+M Files - 512KiB ~ 4MiB
+-----------------------
+Count: %d
+Size: %s
+
+L Files - 4MiB ~ 50MiB
+----------------------
+Count: %d
+Size: %s
+
+XL Files - 50MiB ~ 200MiB
+-------------------------
+Count: %d
+Size: %s
+
+XXL Files - larger than 200MiB
+------------------------------
+Count: %d
+Size: %s`,
 		f.Id,
 		f.ParentId,
 		f.Path,
