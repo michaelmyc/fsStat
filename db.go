@@ -38,25 +38,37 @@ func DBWriter(db *sql.DB, bufferSize int, data chan *FSNodeStat, end chan bool, 
 	}
 }
 
-func RemoveDBIfAllowed(path string) {
-	reader := bufio.NewReader(os.Stdin)
+func removeDB(path string) {
+	log.Printf("Removing database at %s\n", path)
+	os.Remove(path)
+}
+
+func RemoveDBIfAllowed(path string, skipConfirmation bool) {
 	fmt.Print("Do you want to overwrite it? ([y]/n): ")
+
+	if skipConfirmation {
+		fmt.Println()
+		removeDB(path)
+		return
+	}
+
+	reader := bufio.NewReader(os.Stdin)
 	option, _ := reader.ReadString('\n')
 	switch option {
 	case "\n":
-		os.Remove(path)
+		removeDB(path)
 	case "y\n", "Y\n":
-		os.Remove(path)
+		removeDB(path)
 	case "n\n", "N\n":
 		log.Fatalln("Aborting...")
 	default:
 		fmt.Println(option)
 		log.Println("Invalid option")
-		RemoveDBIfAllowed(path)
+		RemoveDBIfAllowed(path, skipConfirmation)
 	}
 }
 
-func ConnectDB(path string) (*sql.DB, error) {
+func ConnectDB(path string, skipConfirmation bool) (*sql.DB, error) {
 	var db *sql.DB
 
 	_, err := os.Stat(path)
@@ -66,7 +78,7 @@ func ConnectDB(path string) (*sql.DB, error) {
 		log.Fatalf("Error when checking file: %v\n", err)
 	} else {
 		log.Printf("WARNING: Database %s is already present\n", path)
-		RemoveDBIfAllowed(path)
+		RemoveDBIfAllowed(path, skipConfirmation)
 	}
 
 	db, err = sql.Open("sqlite3", path)
