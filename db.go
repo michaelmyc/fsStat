@@ -16,7 +16,7 @@ func filterCriteria(data *FSNodeStat) bool {
 	return !data.IsDir && data.Size <= 200*1024*1024
 }
 
-func DBWriter(db *sql.DB, bufferSize int, dataChan chan *FSNodeStat, end chan bool, wg *sync.WaitGroup) {
+func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FSNodeStat, end chan bool, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -40,7 +40,7 @@ func DBWriter(db *sql.DB, bufferSize int, dataChan chan *FSNodeStat, end chan bo
 				count = 0
 			}
 
-			if totalCount%10000 == 0 {
+			if totalCount%uint64(loggingInterval) == 0 {
 				log.Printf("Current file node: %s\n", data.Path)
 				log.Printf("File nodes scanned: %d", totalCount)
 			}

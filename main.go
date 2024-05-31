@@ -12,6 +12,7 @@ func main() {
 	bufferSize := flag.Int("buffer", 200, "Size of the buffer for writing to the database")
 	concurrency := flag.Int("concurrency", 128, "Maximum amount of concurrent workers")
 	skipConfirmation := flag.Bool("y", false, "Whether to skip confirmation prompt")
+	loggingInterval := flag.Int("interval", 5000, "How often to log progress")
 	flag.Parse()
 
 	var root string
@@ -42,7 +43,7 @@ func main() {
 	sem := CreateSemaphore(*concurrency)
 	wg := new(sync.WaitGroup)
 
-	go DBWriter(db, *bufferSize, writerChan, endChan, wg)
+	go DBWriter(db, *bufferSize, *loggingInterval, writerChan, endChan, wg)
 	go IdGenerator(1, idChan)
 	go AsyncDFS(root, root, 0, idChan, writerChan, returnChan, sem)
 	totalSize := <-returnChan
