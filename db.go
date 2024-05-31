@@ -28,6 +28,10 @@ func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FS
 	for {
 		select {
 		case data := <-dataChan:
+			if (totalCount+1)%uint64(loggingInterval) == 0 {
+				log.Printf("Current file node: %s\n", data.Path)
+				log.Printf("File nodes scanned: %d", totalCount+1)
+			}
 			if filterCriteria(data) {
 				totalCount++
 				continue
@@ -38,11 +42,6 @@ func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FS
 			if count == bufferSize {
 				BatchInsertData(buffer[:count], db)
 				count = 0
-			}
-
-			if totalCount%uint64(loggingInterval) == 0 {
-				log.Printf("Current file node: %s\n", data.Path)
-				log.Printf("File nodes scanned: %d", totalCount)
 			}
 		case <-end:
 			ending = true
