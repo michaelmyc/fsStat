@@ -10,7 +10,7 @@ import (
 func main() {
 	dbPath := flag.String("db", "fs_stats.db", "Location of the database file")
 	bufferSize := flag.Int("buffer", 200, "Size of the buffer for writing to the database")
-	concurrency := flag.Int("concurrency", 16, "Maximum amount of concurrent workers")
+	concurrency := flag.Int("concurrency", 128, "Maximum amount of concurrent workers")
 	skipConfirmation := flag.Bool("y", false, "Whether to skip confirmation prompt")
 	flag.Parse()
 
@@ -34,7 +34,7 @@ func main() {
 	}
 	defer db.Close()
 
-	writerChan := make(chan *FSNodeStat, 50) // use buffered channel to prevent blocking
+	writerChan := make(chan *FSNodeStat, *concurrency) // use buffered channel to prevent blocking
 	returnChan := make(chan *FSNodeStat)
 	idChan := make(chan uint32)
 	endChan := make(chan bool)
@@ -49,5 +49,6 @@ func main() {
 	endChan <- true
 	wg.Wait()
 	fmt.Println()
+	fmt.Println("=========== Summary ===========")
 	fmt.Println(totalSize.String())
 }

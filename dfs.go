@@ -22,9 +22,7 @@ func AsyncDFS(root string, path string, parentId uint32, idChan chan uint32, wri
 	if stat.Mode().IsRegular() {
 		size := stat.Size()
 		data := CreateFSNodeStat(root, path, parentId, size, false, idChan)
-		if data.Size > 200*1024*1024 { // 200MB
-			writerChan <- data
-		}
+		writerChan <- data
 		returnChan <- data
 		return
 	}

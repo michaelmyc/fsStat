@@ -11,21 +11,38 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func DBWriter(db *sql.DB, bufferSize int, data chan *FSNodeStat, end chan bool, wg *sync.WaitGroup) {
+func filterCriteria(data *FSNodeStat) bool {
+	// less than or equal to 200MB files
+	return !data.IsDir && data.Size <= 200*1024*1024
+}
+
+func DBWriter(db *sql.DB, bufferSize int, dataChan chan *FSNodeStat, end chan bool, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
+
+	totalCount := uint64(0)
 
 	buffer := make([]*FSNodeStat, bufferSize)
 	count := 0
 	ending := false
 	for {
 		select {
-		case d := <-data:
-			buffer[count] = d
+		case data := <-dataChan:
+			if filterCriteria(data) {
+				totalCount++
+				continue
+			}
+			buffer[count] = data
 			count++
+			totalCount++
 			if count == bufferSize {
 				BatchInsertData(buffer[:count], db)
 				count = 0
+			}
+
+			if totalCount%10000 == 0 {
+				log.Printf("Current file node: %s\n", data.Path)
+				log.Printf("File nodes scanned: %d", totalCount)
 			}
 		case <-end:
 			ending = true
