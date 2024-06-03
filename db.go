@@ -32,17 +32,17 @@ func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FS
 			if (totalCount+1)%uint64(loggingInterval) == 0 {
 				log.Printf("Current file node: %s", data.Path)
 				log.Printf("File nodes scanned: %d", totalCount+1)
-				log.Printf("Size scanned: %s", toAppropriateUnit(totalSize+data.Size))
+				log.Printf("Size scanned: %s", toAppropriateUnit(totalSize+data.SelfSize))
 			}
 			if skipCriteria(data) {
 				totalCount++
-				totalSize += data.Size
+				totalSize += data.SelfSize
 				continue
 			}
 			buffer[count] = data
 			count++
 			totalCount++
-			totalSize += data.Size
+			totalSize += data.SelfSize
 			if count == bufferSize {
 				BatchInsertData(buffer[:count], db)
 				count = 0

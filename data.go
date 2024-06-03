@@ -11,6 +11,7 @@ type FSNodeStat struct {
 	Path         string
 	IsDir        bool
 	Size         uint64
+	SelfSize     uint64
 	Count        uint32
 	SFileCount   uint32
 	SFileSize    uint64
@@ -102,6 +103,7 @@ func CreateFSNodeStat(root string, path string, parentId uint32, size int64, isD
 		ParentId:     parentId,
 		Path:         unrootPath(path, root),
 		IsDir:        isDir,
+		SelfSize:     uint64(size),
 		Size:         uint64(size),
 		Count:        0,
 		SFileCount:   0,
