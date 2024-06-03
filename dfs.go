@@ -13,10 +13,12 @@ func AsyncDFS(root string, path string, parentId uint32, idChan chan uint32, wri
 
 	stat, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		log.Fatalln("Path not found:", path)
+		log.Printf("DFS ERROR: Path not found: %s", path)
+		return
 	}
 	if err != nil {
-		log.Fatalln("Error while getting stats for", path, ":", err)
+		log.Printf("DFS ERROR: Error while getting stats for %s: %s", path, err)
+		return
 	}
 
 	if stat.Mode().IsRegular() {
@@ -31,7 +33,7 @@ func AsyncDFS(root string, path string, parentId uint32, idChan chan uint32, wri
 	if stat.IsDir() {
 		children, err := os.ReadDir(path)
 		if err != nil {
-			log.Fatalln("Error while reading directory", path, ":", err)
+			log.Printf("DFS ERROR: Error while reading directory %s: %s", path, err)
 		}
 		childrenPaths = []string{}
 		for _, child := range children {

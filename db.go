@@ -11,7 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func filterCriteria(data *FSNodeStat) bool {
+func skipCriteria(data *FSNodeStat) bool {
 	// less than or equal to 200MB files
 	return !data.IsDir && data.Size <= 200*1024*1024
 }
@@ -21,6 +21,7 @@ func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FS
 	defer wg.Done()
 
 	totalCount := uint64(0)
+	totalSize := uint64(0)
 
 	buffer := make([]*FSNodeStat, bufferSize)
 	count := 0
@@ -29,16 +30,19 @@ func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FS
 		select {
 		case data := <-dataChan:
 			if (totalCount+1)%uint64(loggingInterval) == 0 {
-				log.Printf("Current file node: %s\n", data.Path)
+				log.Printf("Current file node: %s", data.Path)
 				log.Printf("File nodes scanned: %d", totalCount+1)
+				log.Printf("Size scanned: %s", toAppropriateUnit(totalSize+data.Size))
 			}
-			if filterCriteria(data) {
+			if skipCriteria(data) {
 				totalCount++
+				totalSize += data.Size
 				continue
 			}
 			buffer[count] = data
 			count++
 			totalCount++
+			totalSize += data.Size
 			if count == bufferSize {
 				BatchInsertData(buffer[:count], db)
 				count = 0
@@ -55,7 +59,7 @@ func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FS
 }
 
 func removeDB(path string) {
-	log.Printf("Removing database at %s\n", path)
+	log.Printf("Removing database at %s", path)
 	os.Remove(path)
 }
 
@@ -89,11 +93,11 @@ func ConnectDB(path string, skipConfirmation bool) (*sql.DB, error) {
 
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		log.Printf("Creating new database at %s\n", path)
+		log.Printf("Creating new database at %s", path)
 	} else if err != nil {
-		log.Fatalf("Error when checking file: %v\n", err)
+		log.Fatalf("Error when checking file: %v", err)
 	} else {
-		log.Printf("WARNING: Database %s is already present\n", path)
+		log.Printf("WARNING: Database %s is already present", path)
 		RemoveDBIfAllowed(path, skipConfirmation)
 	}
 
