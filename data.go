@@ -26,6 +26,10 @@ type FSNodeStat struct {
 }
 
 func (f *FSNodeStat) Update(child *FSNodeStat) {
+	if child == nil {
+		return
+	}
+
 	f.Size += child.Size
 	f.Count += child.Count
 	f.SFileCount += child.SFileCount

@@ -67,7 +67,7 @@ func RemoveDBIfAllowed(path string, skipConfirmation bool) {
 	fmt.Print("Do you want to overwrite it? ([y]/n): ")
 
 	if skipConfirmation {
-		fmt.Println()
+		fmt.Println("y")
 		removeDB(path)
 		return
 	}
