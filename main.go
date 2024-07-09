@@ -28,7 +28,8 @@ func main() {
 	log.Println("Starting fsStat on", root)
 	log.Println("Database location:", *dbPath)
 	log.Println("Buffer size:", *bufferSize)
-	log.Println("Concurrency:", *concurrency)
+	log.Println("Max concurrency:", *concurrency)
+	log.Println("Async depth:", *asyncDepth)
 
 	db, err := ConnectDB(*dbPath, *skipConfirmation)
 	if err != nil {
