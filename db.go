@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -26,6 +27,7 @@ func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FS
 	buffer := make([]*FSNodeStat, bufferSize)
 	count := 0
 	ending := false
+	startTime := time.Now()
 	for {
 		select {
 		case data := <-dataChan:
@@ -33,6 +35,7 @@ func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FS
 				log.Printf("Current file node: %s", data.Path)
 				log.Printf("File nodes scanned: %d", totalCount+1)
 				log.Printf("Size scanned: %s", toAppropriateUnit(totalSize+data.SelfSize))
+				log.Printf("Time elapsed: %s", time.Since(startTime).String())
 			}
 			if skipCriteria(data) {
 				totalCount++

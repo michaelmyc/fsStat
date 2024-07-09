@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"path/filepath"
 	"sync"
 )
 
@@ -25,7 +26,12 @@ func main() {
 		root = flag.Arg(0)
 	}
 
-	log.Println("Starting fsStat on", root)
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		log.Fatalln("Failed to get absolute path of root directory:", err)
+	}
+
+	log.Println("Starting fsStat on", absRoot)
 	log.Println("Database location:", *dbPath)
 	log.Println("Buffer size:", *bufferSize)
 	log.Println("Max concurrency:", *concurrency)
@@ -53,13 +59,18 @@ func main() {
 
 	go DBWriter(db, *bufferSize, *loggingInterval, writerChan, writerEndChan, wg)
 	go IdGenerator(1, idChan)
-	go AsyncDFS(root, root, 0, idChan, writerChan, dfsReturnChan, sem, 0, *asyncDepth)
+	go AsyncDFS(absRoot, absRoot, 0, idChan, writerChan, dfsReturnChan, sem, 0, *asyncDepth)
+
 	nodeStats := <-dfsReturnChan
+	if nodeStats != nil {
+		nodeStats.Path = absRoot
+	}
+
 	writerEndChan <- true
 	monitorEndChan <- true
 	resourceUsage := <-monitorReturnChan
 	wg.Wait()
-	fmt.Println("Done")
+
 	if nodeStats != nil {
 		fmt.Println()
 		fmt.Println("=========== Summary ===========")
