@@ -6,60 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
-
-func skipCriteria(data *FSNodeStat) bool {
-	// less than or equal to 200MB files
-	return !data.IsDir && data.Size <= 200*1024*1024
-}
-
-func DBWriter(db *sql.DB, bufferSize int, loggingInterval int, dataChan chan *FSNodeStat, end chan bool, wg *sync.WaitGroup) {
-	wg.Add(1)
-	defer wg.Done()
-
-	totalCount := uint64(0)
-	totalSize := uint64(0)
-
-	buffer := make([]*FSNodeStat, bufferSize)
-	count := 0
-	ending := false
-	startTime := time.Now()
-	for {
-		select {
-		case data := <-dataChan:
-			if (totalCount+1)%uint64(loggingInterval) == 0 {
-				log.Printf("Current file node: %s", data.Path)
-				log.Printf("File nodes scanned: %d", totalCount+1)
-				log.Printf("Size scanned: %s", toAppropriateUnit(totalSize+data.SelfSize))
-				log.Printf("Time elapsed: %s", time.Since(startTime).String())
-			}
-			if skipCriteria(data) {
-				totalCount++
-				totalSize += data.SelfSize
-				continue
-			}
-			buffer[count] = data
-			count++
-			totalCount++
-			totalSize += data.SelfSize
-			if count == bufferSize {
-				BatchInsertData(buffer[:count], db)
-				count = 0
-			}
-		case <-end:
-			ending = true
-		default:
-			if ending {
-				BatchInsertData(buffer[:count], db)
-				return
-			}
-		}
-	}
-}
 
 func removeDB(path string) {
 	log.Printf("Removing database at %s", path)

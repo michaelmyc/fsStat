@@ -6,6 +6,7 @@ import (
 	"log"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -55,9 +56,10 @@ func main() {
 	sem := CreateSemaphore(*concurrency)
 	wg := new(sync.WaitGroup)
 
-	go MonitorResources(monitorReturnChan, monitorEndChan, wg)
+	startTime := time.Now()
 
-	go DBWriter(db, *bufferSize, *loggingInterval, writerChan, writerEndChan, wg)
+	go MonitorResources(startTime, monitorReturnChan, monitorEndChan, wg)
+	go Reducer(db, *bufferSize, *loggingInterval, startTime, writerChan, writerEndChan, wg)
 	go IdGenerator(1, idChan)
 	go AsyncDFS(absRoot, absRoot, 0, idChan, writerChan, dfsReturnChan, sem, 0, *asyncDepth)
 
