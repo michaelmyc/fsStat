@@ -28,11 +28,9 @@ func Reducer(db *sql.DB, bufferSize int, loggingInterval int, startTime time.Tim
 	for {
 		select {
 		case data := <-dataChan:
-			if skipCriteria(data) {
-				totalCount++
-				totalSize += data.SelfSize
-				continue
-			}
+			totalCount++
+			totalSize += data.SelfSize
+
 			if (totalCount)%uint64(loggingInterval) == 0 {
 				thisCheckpointTime := time.Now()
 				sizeIncrement := totalSize - lastCheckpointSize
@@ -54,10 +52,13 @@ func Reducer(db *sql.DB, bufferSize int, loggingInterval int, startTime time.Tim
 				lastCheckpointSize = totalSize
 				lastCheckpointTime = thisCheckpointTime
 			}
+
+			if skipCriteria(data) {
+				continue
+			}
+
 			buffer[count] = data
 			count++
-			totalCount++
-			totalSize += data.SelfSize
 			if count == bufferSize {
 				BatchInsertData(buffer[:count], db)
 				count = 0
