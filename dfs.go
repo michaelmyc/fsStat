@@ -7,34 +7,49 @@ import (
 	"os"
 )
 
-func AsyncDFS(root string, path string, parentId uint32, idChan chan uint32, writerChan chan *FSNodeStat, returnChan chan *FSNodeStat, sem *Semaphore, depth int, asyncDepth int) {
-	sem.Acquire()
-	defer sem.Release()
+func FilesystemDFS(root string, path string, parentId uint32, idChan chan uint32, reducerChan chan *FSNodeStat, returnChan chan *FSNodeStat, sem *Semaphore, depth int, asyncDepth int, isAsync bool) *FSNodeStat {
+	if isAsync {
+		sem.Acquire()
+		defer sem.Release()
+	}
 
-	stat, err := os.Stat(path)
+	stat, err := os.Lstat(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		log.Printf("DFS ERROR: Path not found: %s", path)
-		returnChan <- nil
-		return
+		if isAsync {
+			returnChan <- nil
+		}
+		return nil
 	}
 	if err != nil {
 		log.Printf("DFS ERROR: Error while getting stats for %s: %s", path, err)
-		returnChan <- nil
-		return
+		if isAsync {
+			returnChan <- nil
+		}
+		return nil
 	}
 
 	if stat.Mode().IsRegular() {
 		size := stat.Size()
 		data := CreateFSNodeStat(root, path, parentId, size, false, idChan)
-		writerChan <- data
-		returnChan <- data
-		return
+		reducerChan <- data
+		if isAsync {
+			returnChan <- data
+		}
+		return data
 	}
 
 	if stat.Mode()&fs.ModeSymlink != 0 {
-		log.Println("WARNING: Symbolic link skipped:", path)
-		returnChan <- nil
-		return
+		target, err := os.Readlink(path)
+		if err != nil {
+			log.Println("DFS ERROR: Symbolic link read error:", err)
+		}
+		data := CreateFSLinkStat(root, path, parentId, target, idChan)
+		reducerChan <- data
+		if isAsync {
+			returnChan <- data
+		}
+		return data
 	}
 
 	if stat.IsDir() {
@@ -45,9 +60,7 @@ func AsyncDFS(root string, path string, parentId uint32, idChan chan uint32, wri
 		}
 		childrenPaths = []string{}
 		for _, child := range children {
-			if child.Type().IsRegular() || child.Type().IsDir() {
-				childrenPaths = append(childrenPaths, path+"/"+child.Name())
-			}
+			childrenPaths = append(childrenPaths, path+"/"+child.Name())
 		}
 
 		size := stat.Size()
@@ -57,7 +70,7 @@ func AsyncDFS(root string, path string, parentId uint32, idChan chan uint32, wri
 			if depth < asyncDepth {
 				childReturnChan := make(chan *FSNodeStat)
 				for _, childPath := range childrenPaths {
-					go AsyncDFS(root, childPath, data.Id, idChan, writerChan, childReturnChan, sem, depth+1, asyncDepth)
+					go FilesystemDFS(root, childPath, data.Id, idChan, reducerChan, childReturnChan, sem, depth+1, asyncDepth, true)
 				}
 
 				sem.Release()
@@ -67,68 +80,21 @@ func AsyncDFS(root string, path string, parentId uint32, idChan chan uint32, wri
 				sem.Acquire()
 			} else {
 				for _, childPath := range childrenPaths {
-					data.Update(SyncDFS(root, childPath, data.Id, idChan, writerChan))
+					data.Update(FilesystemDFS(root, childPath, data.Id, idChan, reducerChan, nil, sem, depth+1, asyncDepth, false))
 				}
 			}
 		}
 
-		writerChan <- data
-		returnChan <- data
-		return
-	}
-
-	log.Println("ERROR: Unsupported file type:", path)
-}
-
-func SyncDFS(root string, path string, parentId uint32, idChan chan uint32, writerChan chan *FSNodeStat) *FSNodeStat {
-	stat, err := os.Stat(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		log.Printf("DFS ERROR: Path not found: %s", path)
-		return nil
-	}
-	if err != nil {
-		log.Printf("DFS ERROR: Error while getting stats for %s: %s", path, err)
-		return nil
-	}
-
-	if stat.Mode()&fs.ModeSymlink != 0 {
-		log.Println("WARNING: Symbolic link skipped:", path)
-		return nil
-	}
-
-	if stat.Mode().IsRegular() {
-		size := stat.Size()
-		data := CreateFSNodeStat(root, path, parentId, size, false, idChan)
-		writerChan <- data
-		return data
-	}
-
-	if stat.IsDir() {
-		var childrenPaths []string
-		children, err := os.ReadDir(path)
-		if err != nil {
-			log.Printf("DFS ERROR: Error while reading directory %s: %s", path, err)
+		reducerChan <- data
+		if isAsync {
+			returnChan <- data
 		}
-		childrenPaths = []string{}
-		for _, child := range children {
-			if child.Type().IsRegular() || child.Type().IsDir() {
-				childrenPaths = append(childrenPaths, path+"/"+child.Name())
-			}
-		}
-
-		size := stat.Size()
-		data := CreateFSNodeStat(root, path, parentId, size, true, idChan)
-
-		if len(childrenPaths) > 0 {
-			for _, childPath := range childrenPaths {
-				data.Update(SyncDFS(root, childPath, data.Id, idChan, writerChan))
-			}
-		}
-
-		writerChan <- data
 		return data
 	}
 
 	log.Println("ERROR: Unsupported file type:", path)
+	if isAsync {
+		returnChan <- nil
+	}
 	return nil
 }

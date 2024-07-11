@@ -7,12 +7,14 @@ import (
 	"time"
 )
 
-func skipCriteria(data *FSNodeStat) bool {
-	// less than or equal to 200MB files
-	return !data.IsDir && data.Size <= 200*1024*1024
+func skipCriteria(data *FSNodeStat, saveAllFiles bool) bool {
+	if saveAllFiles {
+		return false
+	}
+	return !data.IsDir && !data.IsSymlink && data.Size <= 200*1024*1024
 }
 
-func Reducer(db *sql.DB, bufferSize int, loggingInterval int, startTime time.Time, dataChan chan *FSNodeStat, end chan bool, wg *sync.WaitGroup) {
+func Reducer(db *sql.DB, bufferSize int, loggingInterval int, saveAllFiles bool, startTime time.Time, dataChan chan *FSNodeStat, end chan bool, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -53,7 +55,7 @@ func Reducer(db *sql.DB, bufferSize int, loggingInterval int, startTime time.Tim
 				lastCheckpointTime = thisCheckpointTime
 			}
 
-			if skipCriteria(data) {
+			if skipCriteria(data, saveAllFiles) {
 				continue
 			}
 

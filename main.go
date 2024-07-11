@@ -15,6 +15,7 @@ func main() {
 	concurrency := flag.Int("concurrency", 128, "Maximum amount of concurrent workers")
 	asyncDepth := flag.Int("asyncDepth", 5, "Depth of asynchronous DFS before switching to synchronous")
 	skipConfirmation := flag.Bool("y", false, "Whether to skip confirmation prompt")
+	saveAllFiles := flag.Bool("saveAllFiles", false, "Whether to save all files in the database or only save files >200MiB")
 	loggingInterval := flag.Int("interval", 5000, "How often to log progress")
 	flag.Parse()
 
@@ -35,6 +36,7 @@ func main() {
 	log.Println("Starting fsStat on", absRoot)
 	log.Println("Database location:", *dbPath)
 	log.Println("Buffer size:", *bufferSize)
+	log.Println("Save all files:", *saveAllFiles)
 	log.Println("Max concurrency:", *concurrency)
 	log.Println("Async depth:", *asyncDepth)
 
@@ -59,19 +61,23 @@ func main() {
 	startTime := time.Now()
 
 	go MonitorResources(startTime, monitorReturnChan, monitorEndChan, wg)
-	go Reducer(db, *bufferSize, *loggingInterval, startTime, writerChan, writerEndChan, wg)
+	go Reducer(db, *bufferSize, *loggingInterval, *saveAllFiles, startTime, writerChan, writerEndChan, wg)
 	go IdGenerator(1, idChan)
-	go AsyncDFS(absRoot, absRoot, 0, idChan, writerChan, dfsReturnChan, sem, 0, *asyncDepth)
+	go FilesystemDFS(absRoot, absRoot, 0, idChan, writerChan, dfsReturnChan, sem, 0, *asyncDepth, true)
+	// go FilesystemDFS(absRoot, absRoot, 0, idChan, writerChan, dfsReturnChan, sem)
 
 	nodeStats := <-dfsReturnChan
-	if nodeStats != nil {
-		nodeStats.Path = absRoot
-	}
 
 	writerEndChan <- true
 	monitorEndChan <- true
 	resourceUsage := <-monitorReturnChan
 	wg.Wait()
+
+	CreateIndex(db)
+
+	if nodeStats != nil {
+		nodeStats.Path = absRoot
+	}
 
 	if nodeStats != nil {
 		fmt.Println()

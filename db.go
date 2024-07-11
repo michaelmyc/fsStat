@@ -63,8 +63,10 @@ func ConnectDB(path string, skipConfirmation bool) (*sql.DB, error) {
 		ParentId INTEGER,
 		Path TEXT,
 		IsDir BOOLEAN,
+		LinkTarget TEXT,
 		Size INTEGER,
 		Count INTEGER,
+		SymlinkCount INTEGER,
 		SFileCount INTEGER,
 		SFileSize INTEGER,
 		MFileCount INTEGER,
@@ -95,24 +97,26 @@ func BatchInsertData(data []*FSNodeStat, db *sql.DB) {
 
 	stmt, err := tx.Prepare(`INSERT INTO 
 	FileNodes(
-		Id, 
-		ParentId, 
-		Path, 
-		IsDir, 
-		Size, 
-		Count, 
-		SFileCount, 
-		SFileSize, 
-		MFileCount, 
-		MFileSize, 
-		LFileCount, 
-		LFileSize, 
-		XLFileCount, 
-		XLFileSize, 
-		XXLFileCount, 
+		Id,
+		ParentId,
+		Path,
+		IsDir,
+		LinkTarget,
+		Size,
+		Count,
+		SymlinkCount,
+		SFileCount,
+		SFileSize,
+		MFileCount,
+		MFileSize,
+		LFileCount,
+		LFileSize,
+		XLFileCount,
+		XLFileSize,
+		XXLFileCount,
 		XXLFileSize
-	) 
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		tx.Rollback()
 		log.Fatal(err)
@@ -125,8 +129,10 @@ func BatchInsertData(data []*FSNodeStat, db *sql.DB) {
 			datum.ParentId,
 			datum.Path,
 			datum.IsDir,
+			datum.LinkTarget,
 			datum.Size,
 			datum.Count,
+			datum.SymlinkCount,
 			datum.SFileCount,
 			datum.SFileSize,
 			datum.MFileCount,
@@ -145,6 +151,13 @@ func BatchInsertData(data []*FSNodeStat, db *sql.DB) {
 	}
 
 	if err := tx.Commit(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func CreateIndex(db *sql.DB) {
+	_, err := db.Exec(`CREATE INDEX Index_ParentId ON FileNodes(ParentId)`)
+	if err != nil {
 		log.Fatal(err)
 	}
 }

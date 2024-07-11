@@ -27,7 +27,7 @@ func MonitorResources(startTime time.Time, returnChan chan *ResourceUsage, end c
 		default:
 			maxSystemMemory = max(maxSystemMemory, GetSystemMemory())
 			maxGoroutines = max(maxGoroutines, runtime.NumGoroutine())
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }

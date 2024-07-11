@@ -10,9 +10,12 @@ type FSNodeStat struct {
 	ParentId     uint32
 	Path         string
 	IsDir        bool
+	IsSymlink    bool
+	LinkTarget   string
 	Size         uint64
 	SelfSize     uint64
 	Count        uint32
+	SymlinkCount uint32
 	SFileCount   uint32
 	SFileSize    uint64
 	MFileCount   uint32
@@ -32,6 +35,7 @@ func (f *FSNodeStat) Update(child *FSNodeStat) {
 
 	f.Size += child.Size
 	f.Count += child.Count
+	f.SymlinkCount += child.SymlinkCount
 	f.SFileCount += child.SFileCount
 	f.SFileSize += child.SFileSize
 	f.MFileCount += child.MFileCount
@@ -52,6 +56,10 @@ Path: %s
 IsDir: %t
 Count: %d
 Size: %s
+
+Symlinks
+--------------------------
+Count: %d
 
 S Files - less than 512KiB
 --------------------------
@@ -83,6 +91,7 @@ Size: %s`,
 		f.IsDir,
 		f.Count,
 		toAppropriateUnit(f.Size),
+		f.SymlinkCount,
 		f.SFileCount,
 		toAppropriateUnit(f.SFileSize),
 		f.MFileCount,
@@ -101,15 +110,43 @@ func unrootPath(path string, root string) string {
 	return "/" + strings.Trim(unrootedPath, "/")
 }
 
+func CreateFSLinkStat(root string, path string, parentId uint32, linkTarget string, idChan chan uint32) *FSNodeStat {
+	return &FSNodeStat{
+		Id:           <-idChan,
+		ParentId:     parentId,
+		Path:         unrootPath(path, root),
+		IsDir:        false,
+		IsSymlink:    true,
+		LinkTarget:   linkTarget,
+		SelfSize:     0,
+		Size:         0,
+		Count:        0,
+		SymlinkCount: 1,
+		SFileCount:   0,
+		SFileSize:    0,
+		MFileCount:   0,
+		MFileSize:    0,
+		LFileCount:   0,
+		LFileSize:    0,
+		XLFileCount:  0,
+		XLFileSize:   0,
+		XXLFileCount: 0,
+		XXLFileSize:  0,
+	}
+}
+
 func CreateFSNodeStat(root string, path string, parentId uint32, size int64, isDir bool, idChan chan uint32) *FSNodeStat {
 	data := FSNodeStat{
 		Id:           <-idChan,
 		ParentId:     parentId,
 		Path:         unrootPath(path, root),
 		IsDir:        isDir,
+		IsSymlink:    false,
+		LinkTarget:   "",
 		SelfSize:     uint64(size),
 		Size:         uint64(size),
 		Count:        0,
+		SymlinkCount: 0,
 		SFileCount:   0,
 		SFileSize:    0,
 		MFileCount:   0,
