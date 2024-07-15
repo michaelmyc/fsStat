@@ -1,11 +1,12 @@
 package main
 
 type Semaphore struct {
-	semC chan bool
+	semC           chan bool
+	maxConcurrency int
 }
 
 func CreateSemaphore(count int) *Semaphore {
-	return &Semaphore{semC: make(chan bool, count)}
+	return &Semaphore{semC: make(chan bool, count), maxConcurrency: count}
 }
 
 func (s *Semaphore) Acquire() {

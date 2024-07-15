@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func FilesystemDFS(root string, path string, parentId uint32, idChan chan uint32, reducerChan chan *FSNodeStat, returnChan chan *FSNodeStat, sem *Semaphore, depth int, asyncDepth int, isAsync bool) *FSNodeStat {
+func FilesystemDFS(root string, path string, parentId uint32, idChan chan uint32, reducerChan chan *FSNodeStat, returnChan chan *FSNodeStat, sem *Semaphore, isAsync bool) *FSNodeStat {
 	if isAsync {
 		sem.Acquire()
 		defer sem.Release()
@@ -67,10 +67,10 @@ func FilesystemDFS(root string, path string, parentId uint32, idChan chan uint32
 		data := CreateFSNodeStat(root, path, parentId, size, true, idChan)
 
 		if len(childrenPaths) > 0 {
-			if depth < asyncDepth {
+			if len(sem.semC) < sem.maxConcurrency {
 				childReturnChan := make(chan *FSNodeStat)
 				for _, childPath := range childrenPaths {
-					go FilesystemDFS(root, childPath, data.Id, idChan, reducerChan, childReturnChan, sem, depth+1, asyncDepth, true)
+					go FilesystemDFS(root, childPath, data.Id, idChan, reducerChan, childReturnChan, sem, true)
 				}
 
 				sem.Release()
@@ -80,7 +80,7 @@ func FilesystemDFS(root string, path string, parentId uint32, idChan chan uint32
 				sem.Acquire()
 			} else {
 				for _, childPath := range childrenPaths {
-					data.Update(FilesystemDFS(root, childPath, data.Id, idChan, reducerChan, nil, sem, depth+1, asyncDepth, false))
+					data.Update(FilesystemDFS(root, childPath, data.Id, idChan, reducerChan, nil, sem, false))
 				}
 			}
 		}
